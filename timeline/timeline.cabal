@@ -1,0 +1,33 @@
+cabal-version: 2.2
+name:          timeline
+version:       0.1.0.0
+synopsis:      A simple library for handling data that changes over time
+license:       BSD-3-Clause
+license-file:  LICENSE
+author:        Bellroy Tech Team <haskell@bellroy.com>
+maintainer:    Bellroy Tech Team <haskell@bellroy.com>
+category:      Development
+build-type:    Simple
+tested-with:   GHC ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.1
+
+source-repository head
+  type:     git
+  location: https://github.com/bellroy/timeline.git
+
+common deps
+  build-depends:
+    , base                 >=4.13.0.0 && <4.18
+    , containers
+    , indexed-traversable
+    , semigroupoids
+    , string-interpolate
+    , template-haskell
+    , time
+
+library
+  import:           deps
+  hs-source-dirs:   src/
+  exposed-modules:  Data.Timeline
+  other-modules:    Data.Timeline.Internal
+  default-language: Haskell2010
+  ghc-options:      -fwarn-unused-imports -Wall -fno-warn-unused-do-bind

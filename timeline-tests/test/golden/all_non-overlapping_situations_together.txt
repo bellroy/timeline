@@ -1,0 +1,10 @@
+Right 
+----------Timeline--Start-------------
+initial value:                 Nothing
+since 2023-01-26 02:00:00 UTC: Just 100
+since 2023-02-28 00:00:00 UTC: Nothing
+since 2023-03-01 00:00:00 UTC: Just 200
+since 2023-04-01 00:00:00 UTC: Just 300
+since 2023-05-01 00:00:00 UTC: Just 400
+since 2023-06-01 00:00:00 UTC: Just 500
+----------Timeline--End---------------

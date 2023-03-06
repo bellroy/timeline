@@ -1,0 +1,38 @@
+cabal-version: 2.2
+name:          timeline-tests
+version:       0.1.0.0
+synopsis:      Tests for the timeline library
+license:       BSD-3-Clause
+license-file:  LICENSE
+author:        Bellroy Tech Team <haskell@bellroy.com>
+maintainer:    Bellroy Tech Team <haskell@bellroy.com>
+category:      Development
+build-type:    Simple
+tested-with:   GHC ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.1
+
+source-repository head
+  type:     git
+  location: https://github.com/bellroy/timeline.git
+
+test-suite tests
+  type:               exitcode-stdio-1.0
+  hs-source-dirs:     test
+  main-is:            Main.hs
+  other-modules:      Spec.Data.Timeline
+  build-tool-depends: tasty-discover:tasty-discover
+  build-depends:
+    , base                 >=4.13.0.0 && <4.18
+    , bytestring
+    , containers
+    , hashable
+    , hedgehog
+    , indexed-traversable
+    , tasty
+    , tasty-golden
+    , tasty-hedgehog
+    , tasty-hunit
+    , text
+    , time
+    , timeline
+    , timeline-hedgehog
+    , transformers

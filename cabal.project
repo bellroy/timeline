@@ -1,0 +1,5 @@
+packages:
+  ./timeline
+  ./timeline-hedgehog
+  ./timeline-tests
+tests: True
