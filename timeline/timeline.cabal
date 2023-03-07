@@ -16,13 +16,13 @@ source-repository head
 
 common deps
   build-depends:
-    , base                 >=4.13.0.0 && <4.18
-    , containers
-    , indexed-traversable
-    , semigroupoids
-    , time
-    , th-compat
-    , template-haskell
+    , base                 >=4.14.3 && <4.17
+    , containers           >=0.6.5  && <0.7
+    , indexed-traversable  >=0.1.2  && <0.2
+    , semigroupoids        >=5.3.7  && <5.4
+    , template-haskell     >=2.16.0 && <2.19
+    , th-compat            >=0.1.4  && <0.2
+    , time                 >=1.9.3  && <1.12
 
 library
   import:           deps
