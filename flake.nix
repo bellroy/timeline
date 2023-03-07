@@ -18,7 +18,8 @@
   outputs = { self, nixpkgs, flake-utils, haskellNix, ... }:
     let
       lib = nixpkgs.lib;
-      supportedCompilers = [ "ghc926" "ghc944" "ghc8107" ];
+      supportedCompilers = [ "ghc944" "ghc926" "ghc8107" ];
+      defaultCompiler = "ghc926";
       makeOverlays = compilerNixName: [
         haskellNix.overlay
         (final: prev:
@@ -31,14 +32,15 @@
                 additional = pkgs: [ pkgs.tasty-discover ];
                 tools = {
                   cabal = "latest";
+                  cabal-fmt = "latest";
+                } // (if compilerNixName == "ghc926" then {
                   haskell-language-server = {
                     version = "latest";
                     configureArgs = ''--constraint "haskell-language-server -dynamic"'';
                   };
                   hlint = "latest";
-                  cabal-fmt = "latest";
                   ormolu = "latest";
-                };
+                } else { });
                 buildInputs = with prev; [
                   rnix-lsp
                   nixpkgs-fmt
@@ -58,7 +60,7 @@
         };
         in
         pkgs.timeline.flake { });
-      defaultFlake = makeFlake (builtins.head supportedCompilers);
+      defaultFlake = makeFlake defaultCompiler;
     in
     defaultFlake // builtins.listToAttrs
       (

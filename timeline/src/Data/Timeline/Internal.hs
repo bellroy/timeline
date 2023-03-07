@@ -8,6 +8,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
@@ -17,7 +18,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module Data.Timeline.Internal
@@ -54,17 +54,13 @@ import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe, maybeToList)
 import Data.Semigroup.Foldable.Class (fold1)
 import Data.Set (Set)
-import Data.String.Interpolate (i)
 import Data.Time
   ( UTCTime (..),
-    diffTimeToPicoseconds,
-    picosecondsToDiffTime,
   )
-import Data.Time.Calendar.OrdinalDate (fromOrdinalDate, pattern YearDay)
 import Data.Traversable.WithIndex (TraversableWithIndex (..))
 import GHC.Generics (Generic)
-import Language.Haskell.TH (Code, Quote)
-import Language.Haskell.TH.Syntax qualified as TH
+import Language.Haskell.TH.Syntax qualified as TH (Lift (liftTyped))
+import Language.Haskell.TH.Syntax.Compat qualified as TH
 import Prelude
 
 -- | An infinite, discrete timeline for data type @a@.
@@ -110,7 +106,7 @@ instance Applicative Timeline where
           funcs
           values
 
-instance Show a => Show (Timeline a) where
+instance (Show a) => Show (Timeline a) where
   show Timeline {initialValue, values} =
     unlines $
       "\n----------Timeline--Start-------------"
@@ -119,7 +115,7 @@ instance Show a => Show (Timeline a) where
         ++ ["----------Timeline--End---------------"]
     where
       showOneChange :: (UTCTime, a) -> String
-      showOneChange (t, x) = [i|since #{t}: #{x}|]
+      showOneChange (t, x) = "since " <> show t <> ": " <> show x
 
 peek :: Timeline a -> UTCTime -> a
 peek Timeline {..} time = maybe initialValue snd $ Map.lookupLE time values
@@ -148,7 +144,7 @@ instance FunctorWithIndex TimeRange Timeline where
 instance FoldableWithIndex TimeRange Timeline
 
 instance TraversableWithIndex TimeRange Timeline where
-  itraverse :: Applicative f => (TimeRange -> a -> f b) -> Timeline a -> f (Timeline b)
+  itraverse :: (Applicative f) => (TimeRange -> a -> f b) -> Timeline a -> f (Timeline b)
   itraverse f = sequenceA . imap f
 
 changes :: Timeline a -> Set UTCTime
@@ -161,7 +157,7 @@ data Record a = Record
   }
   deriving stock (Eq, Functor)
 
-type Getter s a = forall f. Contravariant f => (a -> f a) -> s -> f s
+type Getter s a = forall f. (Contravariant f) => (a -> f a) -> s -> f s
 
 recordEffectiveFrom :: Getter (Record a) UTCTime
 recordEffectiveFrom f r = contramap getEffectiveFrom (f (getEffectiveFrom r))
@@ -196,8 +192,7 @@ makeRecord effectiveFrom effectiveTo value =
     then Nothing
     else Just Record {..}
 
-instance TH.Lift a => TH.Lift (Record a) where
-  liftTyped :: Quote m => Record a -> Code m (Record a)
+instance (TH.Lift a) => TH.Lift (Record a) where
   liftTyped Record {..} =
     [||
     Record
@@ -213,26 +208,18 @@ unLiftUTCTime :: LiftUTCTime -> UTCTime
 unLiftUTCTime (LiftUTCTime t) = t
 
 instance TH.Lift LiftUTCTime where
-  liftTyped :: Quote m => LiftUTCTime -> Code m LiftUTCTime
-  liftTyped (LiftUTCTime (UTCTime (YearDay year dayOfYear) time)) =
-    [||
-    LiftUTCTime
-      ( UTCTime
-          (fromOrdinalDate $$(TH.liftTyped year) $$(TH.liftTyped dayOfYear))
-          (picosecondsToDiffTime $$(TH.liftTyped (diffTimeToPicoseconds time)))
-      )
-    ||]
+  liftTyped (LiftUTCTime t) = [||LiftUTCTime (read $$(TH.liftTyped (show t)))||]
 
-instance Show a => Show (Record a) where
-  show Record {..} = [i|#{effectiveFrom} ~ #{effectiveTo}: #{value}|]
+instance (Show a) => Show (Record a) where
+  show Record {..} = show effectiveFrom <> " ~ " <> show effectiveTo <> ": " <> show value
 
 newtype Overlaps a = Overlaps {groups :: NonEmpty (OverlapGroup a)}
   deriving newtype (Semigroup)
   deriving stock (Eq, Generic)
 
-instance Show a => Show (Overlaps a) where
+instance (Show a) => Show (Overlaps a) where
   show Overlaps {groups} =
-    [i|Here are #{length groups} group(s) of overlapping records\n|]
+    "Here are " <> show (length groups) <> " group(s) of overlapping records\n"
       ++ sep
       ++ intercalate sep (show <$> NonEmpty.toList groups)
       ++ sep
@@ -242,7 +229,7 @@ instance Show a => Show (Overlaps a) where
 data OverlapGroup a = OverlapGroup (Record a) (Record a) [Record a]
   deriving stock (Eq, Generic)
 
-instance Show a => Show (OverlapGroup a) where
+instance (Show a) => Show (OverlapGroup a) where
   show = unlines . fmap show . unpackOverlapGroup
 
 unpackOverlapGroup :: OverlapGroup a -> [Record a]
@@ -276,14 +263,14 @@ fromRecords records =
       -- If the current record overlaps with the top (left-most) record in the next group, we add it
       -- to the group. Otherwise, create a new group for it.
       | isOverlapping = (current NonEmpty.<| next :| group) : groups
-      | otherwise = NonEmpty.singleton current : (next :| group) : groups
+      | otherwise = (current :| []) : (next :| group) : groups
       where
         isOverlapping = maybe False (effectiveFrom next <) (effectiveTo current)
-    mergeOverlappingNeighbours current [] = [NonEmpty.singleton current]
+    mergeOverlappingNeighbours current [] = [current :| []]
 
     checkForOverlap :: NonEmpty (Record a) -> Maybe (Overlaps a)
     checkForOverlap (_ :| []) = Nothing
-    checkForOverlap (x1 :| x2 : xs) = Just . Overlaps . NonEmpty.singleton $ OverlapGroup x1 x2 xs
+    checkForOverlap (x1 :| x2 : xs) = Just . Overlaps . (:| []) $ OverlapGroup x1 x2 xs
 
     -- build the timeline assuming all elements of `sortedRecords` cover distinct (non-overlapping) time-periods
     timeline :: Timeline (Maybe a)

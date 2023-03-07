@@ -9,12 +9,12 @@ where
 
 import Data.Time (UTCTime)
 import Data.Timeline.Internal
-import Language.Haskell.TH (Quote)
 import Language.Haskell.TH.Syntax qualified as TH
+import Language.Haskell.TH.Syntax.Compat qualified as TH
 
 makeRecordTH ::
-  (MonadFail m, Quote m, TH.Lift a) => UTCTime -> Maybe UTCTime -> a -> TH.Code m (Record a)
-makeRecordTH effectiveFrom effectiveTo value = TH.bindCode
+  (TH.Lift a) => UTCTime -> Maybe UTCTime -> a -> TH.SpliceQ (Record a)
+makeRecordTH effectiveFrom effectiveTo value = TH.bindSplice
   ( maybe (fail "effective to is no greater than effective from") pure $
       makeRecord effectiveFrom effectiveTo value
   )
