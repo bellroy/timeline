@@ -66,7 +66,7 @@
               );
           in
           packagesWithoutDefault // {
-            default = nixpkgs.runCommand "combine"
+            default = nixpkgs.runCommand "aggregate"
               {
                 buildInputs = builtins.map (name: packagesWithoutDefault.${name})
                   (builtins.attrNames packagesWithoutDefault);
