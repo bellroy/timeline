@@ -1,13 +1,6 @@
 {
-  # The flake not intended to be consumed by downstream direcly. Please fetch from Hackage.
-  # Continue reading if you want to develop this package.
-  # Useful commands:
-  #   - Build with the default copmiler: nix build .#timeline:lib:timeline
-  #   - Test: nix build .#checks.x86_64-linux.timeline:test:tests
-  #   - Test with other versions of GHC: .#ghc944.checks.x86_64-linux.timeline:test:tests
   inputs = {
-    haskellNix.url = "github:input-output-hk/haskell.nix";
-    nixpkgs.follows = "haskellNix/nixpkgs-unstable";
+    nixpkgs.url = "nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     flake-compat = {
       url = "github:edolstra/flake-compat";
@@ -15,64 +8,83 @@
     };
   };
 
-  outputs = { self, nixpkgs, flake-utils, haskellNix, ... }:
+  outputs = inputs:
     let
-      lib = nixpkgs.lib;
-      supportedCompilers = [ "ghc944" "ghc926" "ghc8107" ];
+      cabalPackages = [ "timeline" "timeline-hedgehog" "timeline-tests" ];
+      supportedCompilers = [ "ghc8107" "ghc926" "ghc944" ];
       defaultCompiler = "ghc926";
-      makeOverlays = compilerNixName: [
-        haskellNix.overlay
-        (final: prev:
-          {
-            timeline = final.haskell-nix.project' {
-              src = ./.;
-              name = "timeline";
-              compiler-nix-name = compilerNixName;
-              shell = {
-                additional = pkgs: [ pkgs.tasty-discover ];
-                tools = {
-                  cabal = "latest";
-                  cabal-fmt = "latest";
-                } // (if compilerNixName == "ghc926" then {
-                  haskell-language-server = {
-                    version = "latest";
-                    configureArgs = ''--constraint "haskell-language-server -dynamic"'';
-                  };
-                  hlint = "latest";
-                  ormolu = "latest";
-                } else { });
-                buildInputs = with prev; [
-                  rnix-lsp
-                  nixpkgs-fmt
-                ];
-                withHoogle = true;
-              };
-            };
-          })
-      ];
     in
-    let
-      makeFlake = compilerNixName: flake-utils.lib.eachDefaultSystem (system:
-        let pkgs = import nixpkgs {
-          inherit system;
-          inherit (haskellNix) config;
-          overlays = makeOverlays compilerNixName;
-        };
-        in
-        pkgs.timeline.flake { });
-      defaultFlake = makeFlake defaultCompiler;
-    in
-    defaultFlake // builtins.listToAttrs
-      (
-        builtins.map
-          (compilerNixName: {
-            name = compilerNixName;
-            value = makeFlake compilerNixName;
-          })
-          supportedCompilers
-      );
+    inputs.flake-utils.lib.eachDefaultSystem (system:
+      let
+        nixpkgs = import inputs.nixpkgs { inherit system; };
 
-  nixConfig = {
-    allow-import-from-derivation = "true";
-  };
+        makePackageSet = haskellPackages: haskellPackages.override {
+          overrides = final: prev: with nixpkgs.haskell.lib;
+            builtins.listToAttrs
+              (
+                builtins.map
+                  (name: {
+                    inherit name;
+                    value = prev.callPackage (./. + "/${name}") { };
+                  })
+                  cabalPackages
+              );
+        };
+
+        makeShell = haskellPackages: (makePackageSet haskellPackages).shellFor {
+          packages = p: builtins.map (name: p.${name}) cabalPackages;
+          withHoogle = true;
+          buildInputs = with nixpkgs; [
+            cabal-install
+            hlint
+            ormolu
+            haskellPackages.haskell-language-server
+            haskellPackages.cabal-fmt
+            cabal2nix
+          ];
+        };
+      in
+      {
+        packages =
+          let packagesWithoutDefault =
+            builtins.listToAttrs
+              (
+                builtins.concatMap
+                  (compilerName:
+                    let pkgSet = makePackageSet nixpkgs.haskell.packages.${compilerName};
+                    in
+                    builtins.map
+                      (name: {
+                        name = "${compilerName}-${name}";
+                        value = pkgSet.${name};
+                      })
+                      cabalPackages
+                  )
+                  supportedCompilers
+              );
+          in
+          packagesWithoutDefault // {
+            default = nixpkgs.runCommand "combine"
+              {
+                buildInputs = builtins.map (name: packagesWithoutDefault.${name})
+                  (builtins.attrNames packagesWithoutDefault);
+              } "touch $out";
+          };
+
+        devShells =
+          let devShellsWithoutDefault =
+            builtins.listToAttrs
+              (
+                builtins.map
+                  (compilerName: {
+                    name = compilerName;
+                    value = makeShell nixpkgs.haskell.packages.${compilerName};
+                  })
+                  supportedCompilers
+              ); in
+          devShellsWithoutDefault // {
+            default = devShellsWithoutDefault.${defaultCompiler};
+          };
+      }
+    );
 }
