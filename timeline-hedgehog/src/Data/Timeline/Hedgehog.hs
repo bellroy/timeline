@@ -15,9 +15,9 @@ import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 
 gen :: (MonadGen m) => m a -> m (Timeline a)
-gen gen' = do
-  initialValue <- gen'
-  values <- Gen.map (Range.linear 0 20) $ (,) <$> genUTCTime <*> gen'
+gen genA = do
+  initialValue <- genA
+  values <- Gen.map (Range.linear 0 20) $ (,) <$> genUTCTime <*> genA
   pure Timeline {initialValue, values}
 
 genRecord :: (MonadGen m) => m a -> m (Record a)

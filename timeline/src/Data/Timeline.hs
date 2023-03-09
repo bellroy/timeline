@@ -14,8 +14,9 @@ import Language.Haskell.TH.Syntax.Compat qualified as TH
 
 makeRecordTH ::
   (TH.Lift a) => UTCTime -> Maybe UTCTime -> a -> TH.SpliceQ (Record a)
-makeRecordTH effectiveFrom effectiveTo value = TH.bindSplice
-  ( maybe (fail "effective to is no greater than effective from") pure $
-      makeRecord effectiveFrom effectiveTo value
-  )
-  $ \record -> [||$$(TH.liftTyped record)||]
+makeRecordTH effectiveFrom effectiveTo value =
+  TH.bindSplice
+    ( maybe (fail "effective to is no greater than effective from") pure $
+        makeRecord effectiveFrom effectiveTo value
+    )
+    TH.liftTyped

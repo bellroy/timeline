@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Spec.Data.Timeline where
+module Data.TimelineTest where
 
 import Control.Applicative (liftA2)
 import Control.Monad.Trans.Writer.CPS (execWriter, tell)

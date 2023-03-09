@@ -1,14 +1,17 @@
-cabal-version: 2.2
-name:          timeline-hedgehog
-version:       0.1.0.0
-synopsis:      Hedgehog generators for the timeline library
-license:       BSD-3-Clause
-license-file:  LICENSE
-author:        Bellroy Tech Team <haskell@bellroy.com>
-maintainer:    Bellroy Tech Team <haskell@bellroy.com>
-category:      Development
-build-type:    Simple
-tested-with:   GHC ==8.10.7 || ==9.2.6 || ==9.4.4
+cabal-version:      2.2
+name:               timeline-hedgehog
+version:            0.1.0.0
+synopsis:           Hedgehog generators for the timeline library
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Bellroy Tech Team <haskell@bellroy.com>
+maintainer:         Bellroy Tech Team <haskell@bellroy.com>
+category:           Development
+build-type:         Simple
+tested-with:        GHC ==8.10.7 || ==9.2.6 || ==9.4.4
+extra-source-files:
+  CHANGELOG.md
+  README.md
 
 source-repository head
   type:     git
