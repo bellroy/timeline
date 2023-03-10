@@ -1,5 +1,4 @@
 {-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Data.Timeline
   ( module Data.Timeline.Internal,

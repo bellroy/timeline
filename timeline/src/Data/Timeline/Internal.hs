@@ -18,6 +18,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module Data.Timeline.Internal
@@ -33,9 +34,10 @@ module Data.Timeline.Internal
     -- * effectiveFrom + optional effectiveTo
     Record,
     makeRecord,
-    recordEffectiveFrom,
-    recordEffectiveTo,
-    recordValue,
+    getEffectiveFrom,
+    getEffectiveTo,
+    getValue,
+    prettyRecord,
     fromRecords,
     Overlaps (..),
     prettyOverlaps,
@@ -60,9 +62,13 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Time
   ( UTCTime (..),
+    diffTimeToPicoseconds,
+    picosecondsToDiffTime,
   )
+import Data.Time.Calendar.OrdinalDate (fromOrdinalDate, toOrdinalDate)
 import Data.Traversable.WithIndex (TraversableWithIndex (..))
 import GHC.Generics (Generic)
+import GHC.Records (HasField (getField))
 import Language.Haskell.TH.Syntax qualified as TH (Lift (liftTyped))
 import Language.Haskell.TH.Syntax.Compat qualified as TH
 import Prelude
@@ -128,13 +134,13 @@ peek :: Timeline a -> UTCTime -> a
 peek Timeline {..} time = maybe initialValue snd $ Map.lookupLE time values
 
 data TimeRange = TimeRange
-  { trFrom :: Maybe UTCTime,
-    trTo :: Maybe UTCTime
+  { from :: Maybe UTCTime,
+    to :: Maybe UTCTime
   }
   deriving stock (Show, Eq, Ord, Generic)
 
 isTimeAfterRange :: UTCTime -> TimeRange -> Bool
-isTimeAfterRange t TimeRange {trTo} = maybe False (t >=) trTo
+isTimeAfterRange t TimeRange {to} = maybe False (t >=) to
 
 instance FunctorWithIndex TimeRange Timeline where
   imap :: (TimeRange -> a -> b) -> Timeline a -> Timeline b
@@ -162,27 +168,16 @@ data Record a = Record
     effectiveTo :: Maybe UTCTime,
     value :: a
   }
-  deriving stock (Eq, Functor)
+  deriving stock (Show, Eq, Functor, Foldable, Traversable)
 
-type Getter s a = forall f. (Contravariant f) => (a -> f a) -> s -> f s
+getEffectiveFrom :: Record a -> UTCTime
+getEffectiveFrom = effectiveFrom
 
-recordEffectiveFrom :: Getter (Record a) UTCTime
-recordEffectiveFrom f r = contramap getEffectiveFrom (f (getEffectiveFrom r))
-  where
-    getEffectiveFrom :: Record a -> UTCTime
-    getEffectiveFrom Record {effectiveFrom} = effectiveFrom
+getEffectiveTo :: Record a -> Maybe UTCTime
+getEffectiveTo = effectiveTo
 
-recordEffectiveTo :: Getter (Record a) (Maybe UTCTime)
-recordEffectiveTo f r = contramap getEffectiveTo (f (getEffectiveTo r))
-  where
-    getEffectiveTo :: Record a -> Maybe UTCTime
-    getEffectiveTo Record {effectiveTo} = effectiveTo
-
-recordValue :: Getter (Record a) a
-recordValue f r = contramap getValue (f (getValue r))
-  where
-    getValue :: Record a -> a
-    getValue Record {value} = value
+getValue :: Record a -> a
+getValue = value
 
 -- | 'makeRecord' returns 'Nothing' if @effectiveTo@ is not greater than @effectiveFrom@
 makeRecord ::
@@ -215,10 +210,16 @@ unLiftUTCTime :: LiftUTCTime -> UTCTime
 unLiftUTCTime (LiftUTCTime t) = t
 
 instance TH.Lift LiftUTCTime where
-  liftTyped (LiftUTCTime t) = [||LiftUTCTime (read $$(TH.liftTyped (show t)))||]
+  liftTyped (LiftUTCTime (UTCTime (toOrdinalDate -> (year, day)) diffTime)) =
+    [||
+    LiftUTCTime $
+      UTCTime
+        (fromOrdinalDate $$(TH.liftTyped year) $$(TH.liftTyped day))
+        (picosecondsToDiffTime $$(TH.liftTyped (diffTimeToPicoseconds diffTime)))
+    ||]
 
-instance (Show a) => Show (Record a) where
-  show Record {..} = show effectiveFrom <> " ~ " <> show effectiveTo <> ": " <> show value
+prettyRecord :: Show a => Record a -> Text
+prettyRecord Record {..} = tshow effectiveFrom <> " ~ " <> tshow effectiveTo <> ": " <> tshow value
 
 newtype Overlaps a = Overlaps {groups :: NonEmpty (OverlapGroup a)}
   deriving newtype (Semigroup)
@@ -239,12 +240,12 @@ data OverlapGroup a = OverlapGroup (Record a) (Record a) [Record a]
   deriving stock (Show, Eq, Generic)
 
 prettyOverlapGroup :: Show a => OverlapGroup a -> Text
-prettyOverlapGroup = T.unlines . fmap tshow . unpackOverlapGroup
+prettyOverlapGroup = T.unlines . fmap prettyRecord . unpackOverlapGroup
 
 unpackOverlapGroup :: OverlapGroup a -> [Record a]
 unpackOverlapGroup (OverlapGroup r1 r2 records) = r1 : r2 : records
 
--- Build a 'Timeline' from a list of 'Record's.
+-- | Build a 'Timeline' from a list of 'Record's.
 --
 -- For any time, there could be zero, one, or more values, according to the input. No other condition
 -- is possible. We have taken account the "zero" case by wrapping the result in 'Maybe', so the only
