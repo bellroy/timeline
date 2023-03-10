@@ -22,16 +22,15 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Data.Timeline.Internal
-  ( -- * Common
+  ( -- * Core types and functions
     Timeline (..),
-    fromValues,
     peek,
     prettyTimeline,
     changes,
     TimeRange (..),
     isTimeAfterRange,
 
-    -- * effectiveFrom + optional effectiveTo
+    -- * Upper bound effectiveness time handling
     Record,
     makeRecord,
     getEffectiveFrom,
@@ -73,28 +72,20 @@ import Language.Haskell.TH.Syntax qualified as TH (Lift (liftTyped))
 import Language.Haskell.TH.Syntax.Compat qualified as TH
 import Prelude
 
--- | An infinite, discrete timeline for data type @a@.
--- It always has a value for any time, but the set of values has a finite size.
+-- | A unbounded discrete timeline for data type @a@.
+-- @'Timeline' a@ always has a value for any time, but the value can only change for a finite number of times.
+--
+-- * 'Functor', 'Foldable' and 'Traversable' instances are provided to traverse through the timeline;
+-- * 'FunctorWithIndex', 'Foldable' and 'TraversableWithIndex' instances are provided in case you need the current time
+-- range where each value holds
+-- * 'Applicative' instance can be used to merge multiple 'Timeline's together
 data Timeline a = Timeline
-  {- Internally this is represented by an initial value and a list of updated values.
-    Each change has an effective time and a new value.
-    This makes it possible to inspect the individual changes and to serialize the type,
-      but makes it impossible to represent timelines that change continuously. Continuous data
-      in computers' world is very rare, unless you are working with some math formulas.
-  -}
-  { initialValue :: a,
+  { -- | the value from negative infinity time to the first time in 'values'
+    initialValue :: a,
     -- | changes are keyed by their "effective from" time, for easier lookup
     values :: Map UTCTime a
   }
   deriving stock (Show, Eq, Generic, Functor, Foldable, Traversable)
-
-fromValues ::
-  -- | initial value
-  a ->
-  -- | new values begin to take effect at the specified times
-  Map UTCTime a ->
-  Timeline a
-fromValues initialValue values = Timeline {initialValue, values}
 
 instance Applicative Timeline where
   pure :: a -> Timeline a
@@ -119,6 +110,9 @@ instance Applicative Timeline where
 tshow :: Show a => a -> Text
 tshow = T.pack . show
 
+-- | Pretty-print @'Timeline' a@. It's provided so that you can investigate the value of 'Timeline' more easily. If you
+-- need to show a timeline to the end user, write your own function. We don't gurantee the result to be stable across
+-- different versions of this library.
 prettyTimeline :: forall a. Show a => Timeline a -> Text
 prettyTimeline Timeline {initialValue, values} =
   T.unlines $
@@ -130,15 +124,24 @@ prettyTimeline Timeline {initialValue, values} =
     showOneChange :: (UTCTime, a) -> Text
     showOneChange (t, x) = "since " <> tshow t <> ": " <> tshow x
 
-peek :: Timeline a -> UTCTime -> a
+-- | Extract a single value from the timeline
+peek ::
+  Timeline a ->
+  -- | The time to peek. Any valid 'UTCTime' value can be passed in.
+  UTCTime ->
+  a
 peek Timeline {..} time = maybe initialValue snd $ Map.lookupLE time values
 
+-- | A time range. Each bound is optional. 'Nothing' represents infinity.
 data TimeRange = TimeRange
-  { from :: Maybe UTCTime,
+  { -- | inclusive
+    from :: Maybe UTCTime,
+    -- | exclusive
     to :: Maybe UTCTime
   }
   deriving stock (Show, Eq, Ord, Generic)
 
+-- | If all time in 'TimeRange' is less than the given 'UTCTime'
 isTimeAfterRange :: UTCTime -> TimeRange -> Bool
 isTimeAfterRange t TimeRange {to} = maybe False (t >=) to
 
@@ -160,26 +163,36 @@ instance TraversableWithIndex TimeRange Timeline where
   itraverse :: (Applicative f) => (TimeRange -> a -> f b) -> Timeline a -> f (Timeline b)
   itraverse f = sequenceA . imap f
 
+-- | Return a set of 'UTCTime's when the value changes
 changes :: Timeline a -> Set UTCTime
 changes Timeline {values} = Map.keysSet values
 
+-- | A value with @effectiveFrom@ and @effectiveTo@ attached. This is often the type we get from inputs. A list of
+-- @'Record' a@ can be converted to @'Timeline' ('Maybe' a)@. See 'fromRecords'.
 data Record a = Record
-  { effectiveFrom :: UTCTime,
+  { -- | inclusive
+    effectiveFrom :: UTCTime,
+    -- | exclusive. When 'Nothing', the record never expires, until there is another record with a newer 'effectiveFrom'
+    -- time.
     effectiveTo :: Maybe UTCTime,
     value :: a
   }
   deriving stock (Show, Eq, Functor, Foldable, Traversable)
 
+-- | Get the "effective from" time
 getEffectiveFrom :: Record a -> UTCTime
 getEffectiveFrom = effectiveFrom
 
+-- | Get the "effective to" time
 getEffectiveTo :: Record a -> Maybe UTCTime
 getEffectiveTo = effectiveTo
 
+-- | Get the value wrapped in a @'Record' a@
 getValue :: Record a -> a
 getValue = value
 
--- | 'makeRecord' returns 'Nothing' if @effectiveTo@ is not greater than @effectiveFrom@
+-- | A smart constructor for @'Record' a@.
+-- Returns 'Nothing' if @effectiveTo@ is not greater than @effectiveFrom@
 makeRecord ::
   -- | effective from
   UTCTime ->
@@ -188,7 +201,6 @@ makeRecord ::
   -- | value
   a ->
   Maybe (Record a)
--- can't write a makeRecordTH because UTCTime has no Lift instance
 makeRecord effectiveFrom effectiveTo value =
   if maybe False (effectiveFrom >=) effectiveTo
     then Nothing
@@ -218,13 +230,17 @@ instance TH.Lift LiftUTCTime where
         (picosecondsToDiffTime $$(TH.liftTyped (diffTimeToPicoseconds diffTime)))
     ||]
 
+-- | Pretty-print @'Record' a@, like 'prettyTimeline'.
 prettyRecord :: Show a => Record a -> Text
 prettyRecord Record {..} = tshow effectiveFrom <> " ~ " <> tshow effectiveTo <> ": " <> tshow value
 
+-- | An @'Overlaps' a@ consists of several groups. Within each group, all records
+-- are connected where two records are "connected" if they are overlapping.
 newtype Overlaps a = Overlaps {groups :: NonEmpty (OverlapGroup a)}
   deriving newtype (Semigroup)
   deriving stock (Show, Eq, Generic)
 
+-- | Pretty-print @'Overlaps' a@, like 'prettyTimeline'.
 prettyOverlaps :: Show a => Overlaps a -> Text
 prettyOverlaps Overlaps {groups} =
   "Here are "
@@ -236,12 +252,14 @@ prettyOverlaps Overlaps {groups} =
   where
     sep = "--------------------\n"
 
+-- | A group of overlapping records. There must be at least two records within a group.
 data OverlapGroup a = OverlapGroup (Record a) (Record a) [Record a]
   deriving stock (Show, Eq, Generic)
 
 prettyOverlapGroup :: Show a => OverlapGroup a -> Text
 prettyOverlapGroup = T.unlines . fmap prettyRecord . unpackOverlapGroup
 
+-- | Unpack @'OverlapGroup' a@ as a list of records.
 unpackOverlapGroup :: OverlapGroup a -> [Record a]
 unpackOverlapGroup (OverlapGroup r1 r2 records) = r1 : r2 : records
 

@@ -1,9 +1,14 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
+-- |
+--  Hedgehog generators for the timeline library.
 module Data.Timeline.Hedgehog
-  ( gen,
+  ( -- * Timeline Generators
+    gen,
     genRecord,
+
+    -- * Helpers
     genUTCTime,
   )
 where
@@ -14,19 +19,30 @@ import Hedgehog (MonadGen)
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range
 
-gen :: (MonadGen m) => m a -> m (Timeline a)
-gen genA = do
-  initialValue <- genA
-  values <- Gen.map (Range.linear 0 20) $ (,) <$> genUTCTime <*> genA
+-- | Generator for @'Timeline' a@
+gen ::
+  (MonadGen m) =>
+  -- | Generator for values
+  m a ->
+  m (Timeline a)
+gen genValue = do
+  initialValue <- genValue
+  values <- Gen.map (Range.linear 0 20) $ (,) <$> genUTCTime <*> genValue
   pure Timeline {initialValue, values}
 
-genRecord :: (MonadGen m) => m a -> m (Record a)
+-- | Generator for @'Record' a@
+genRecord ::
+  (MonadGen m) =>
+  -- | Generator for the value
+  m a ->
+  m (Record a)
 genRecord valueGen =
   Gen.justT $ do
     t1 <- genUTCTime
     t2 <- Gen.maybe $ Gen.filterT (/= t1) genUTCTime
     makeRecord t1 t2 <$> valueGen
 
+-- | A 'UTCTime' generator
 genUTCTime :: (MonadGen m) => m UTCTime
 genUTCTime = do
   y <- toInteger <$> Gen.int (Range.constant 2000 2030)

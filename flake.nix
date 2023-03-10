@@ -39,6 +39,7 @@
           ormolu
           haskellPackages.cabal-fmt
           cabal2nix
+          miniserve
         ];
 
         makeShell = haskellPackages: (makePackageSet haskellPackages).shellFor {

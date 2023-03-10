@@ -144,12 +144,12 @@ test_peek =
     testCase "before first change" $
       1
         @=? peek @Int
-          (fromValues 1 (Map.singleton (UTCTime (fromGregorian 2023 1 16) 0) 2))
+          (Timeline 1 (Map.singleton (UTCTime (fromGregorian 2023 1 16) 0) 2))
           (UTCTime (fromGregorian 2023 1 15) 0),
     testCase "between changes" $
       2
         @=? peek @Int
-          ( fromValues
+          ( Timeline
               1
               [ (UTCTime (fromGregorian 2023 1 16) 0, 2),
                 (UTCTime (fromGregorian 2023 1 19) 0, 3)
@@ -159,7 +159,7 @@ test_peek =
     testCase "at the last change" $
       3
         @=? peek @Int
-          ( fromValues
+          ( Timeline
               1
               [ (UTCTime (fromGregorian 2023 1 16) 0, 2),
                 (UTCTime (fromGregorian 2023 1 19) 0, 3)
@@ -169,7 +169,7 @@ test_peek =
     testCase "after all changes" $
       3
         @=? peek @Int
-          ( fromValues
+          ( Timeline
               1
               [ (UTCTime (fromGregorian 2023 1 16) 0, 2),
                 (UTCTime (fromGregorian 2023 1 19) 0, 3)
@@ -211,7 +211,7 @@ test_imap =
       let t1 = UTCTime (fromGregorian 2023 1 16) 0
           t2 = UTCTime (fromGregorian 2023 1 19) 0
           timeline =
-            fromValues @Int
+            Timeline @Int
               1
               [ (t1, 2),
                 (t2, 3)

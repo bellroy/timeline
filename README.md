@@ -33,3 +33,10 @@ for its usage.
 ## Contribution
 We, Bellroy, actively maintains this project. Feel free to submit issues and
 pull requests! Our primary timezone is GMT+11.
+
+The code is formatted with [`ormolu`](https://hackage.haskell.org/package/ormolu)
+
+If you use Nix:
+- `nix develop` enter a shell with all necessary tools
+- `nix build` build and run tests on all GHC versions we support
+- Use `nix flake show` to view a full list of outputs
