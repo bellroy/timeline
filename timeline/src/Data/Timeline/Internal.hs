@@ -1,6 +1,5 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DerivingStrategies #-}
@@ -12,6 +11,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
@@ -25,9 +25,10 @@ module Data.Timeline.Internal
     Timeline (..),
     fromValues,
     peek,
+    prettyTimeline,
+    changes,
     TimeRange (..),
     isTimeAfterRange,
-    changes,
 
     -- * effectiveFrom + optional effectiveTo
     Record,
@@ -37,6 +38,7 @@ module Data.Timeline.Internal
     recordValue,
     fromRecords,
     Overlaps (..),
+    prettyOverlaps,
     OverlapGroup (..),
     unpackOverlapGroup,
   )
@@ -54,6 +56,8 @@ import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe, maybeToList)
 import Data.Semigroup.Foldable.Class (fold1)
 import Data.Set (Set)
+import Data.Text (Text)
+import Data.Text qualified as T
 import Data.Time
   ( UTCTime (..),
   )
@@ -76,7 +80,7 @@ data Timeline a = Timeline
     -- | changes are keyed by their "effective from" time, for easier lookup
     values :: Map UTCTime a
   }
-  deriving stock (Eq, Generic, Functor, Foldable, Traversable)
+  deriving stock (Show, Eq, Generic, Functor, Foldable, Traversable)
 
 fromValues ::
   -- | initial value
@@ -106,16 +110,19 @@ instance Applicative Timeline where
           funcs
           values
 
-instance (Show a) => Show (Timeline a) where
-  show Timeline {initialValue, values} =
-    unlines $
-      "\n----------Timeline--Start-------------"
-        : ("initial value:                 " <> show initialValue)
-        : fmap showOneChange (Map.toAscList values)
-        ++ ["----------Timeline--End---------------"]
-    where
-      showOneChange :: (UTCTime, a) -> String
-      showOneChange (t, x) = "since " <> show t <> ": " <> show x
+tshow :: Show a => a -> Text
+tshow = T.pack . show
+
+prettyTimeline :: forall a. Show a => Timeline a -> Text
+prettyTimeline Timeline {initialValue, values} =
+  T.unlines $
+    "\n----------Timeline--Start-------------"
+      : ("initial value:                 " <> tshow initialValue)
+      : fmap showOneChange (Map.toAscList values)
+      ++ ["----------Timeline--End---------------"]
+  where
+    showOneChange :: (UTCTime, a) -> Text
+    showOneChange (t, x) = "since " <> tshow t <> ": " <> tshow x
 
 peek :: Timeline a -> UTCTime -> a
 peek Timeline {..} time = maybe initialValue snd $ Map.lookupLE time values
@@ -215,22 +222,24 @@ instance (Show a) => Show (Record a) where
 
 newtype Overlaps a = Overlaps {groups :: NonEmpty (OverlapGroup a)}
   deriving newtype (Semigroup)
-  deriving stock (Eq, Generic)
+  deriving stock (Show, Eq, Generic)
 
-instance (Show a) => Show (Overlaps a) where
-  show Overlaps {groups} =
-    "Here are " <> show (length groups) <> " group(s) of overlapping records\n"
-      ++ sep
-      ++ intercalate sep (show <$> NonEmpty.toList groups)
-      ++ sep
-    where
-      sep = "--------------------\n"
+prettyOverlaps :: Show a => Overlaps a -> Text
+prettyOverlaps Overlaps {groups} =
+  "Here are "
+    <> tshow (length groups)
+    <> " group(s) of overlapping records\n"
+    <> sep
+    <> T.intercalate sep (prettyOverlapGroup <$> NonEmpty.toList groups)
+    <> sep
+  where
+    sep = "--------------------\n"
 
 data OverlapGroup a = OverlapGroup (Record a) (Record a) [Record a]
-  deriving stock (Eq, Generic)
+  deriving stock (Show, Eq, Generic)
 
-instance (Show a) => Show (OverlapGroup a) where
-  show = unlines . fmap show . unpackOverlapGroup
+prettyOverlapGroup :: Show a => OverlapGroup a -> Text
+prettyOverlapGroup = T.unlines . fmap tshow . unpackOverlapGroup
 
 unpackOverlapGroup :: OverlapGroup a -> [Record a]
 unpackOverlapGroup (OverlapGroup r1 r2 records) = r1 : r2 : records

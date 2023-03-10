@@ -1,5 +1,5 @@
 { mkDerivation, base, containers, indexed-traversable, lib
-, semigroupoids, template-haskell, th-compat, time
+, semigroupoids, template-haskell, text, th-compat, time
 }:
 mkDerivation {
   pname = "timeline";
@@ -7,7 +7,7 @@ mkDerivation {
   src = ./.;
   libraryHaskellDepends = [
     base containers indexed-traversable semigroupoids template-haskell
-    th-compat time
+    text th-compat time
   ];
   description = "A simple library for handling data that changes over time";
   license = lib.licenses.bsd3;

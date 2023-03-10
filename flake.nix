@@ -33,17 +33,24 @@
               );
         };
 
+        essentialTools = with nixpkgs; [
+          cabal-install
+          hlint
+          ormolu
+          haskellPackages.cabal-fmt
+          cabal2nix
+        ];
+
         makeShell = haskellPackages: (makePackageSet haskellPackages).shellFor {
           packages = p: builtins.map (name: p.${name}) cabalPackages;
           withHoogle = true;
-          buildInputs = with nixpkgs; [
-            cabal-install
-            hlint
-            ormolu
-            haskellPackages.haskell-language-server
-            haskellPackages.cabal-fmt
-            cabal2nix
+          buildInputs = essentialTools ++ [
+            nixpkgs.haskellPackages.haskell-language-server
           ];
+        };
+
+        lightShell = nixpkgs.mkShell {
+          packages = essentialTools ++ [ nixpkgs.ghc ];
         };
       in
       {
@@ -86,6 +93,7 @@
               ); in
           devShellsWithoutDefault // {
             default = devShellsWithoutDefault.${defaultCompiler};
+            light = lightShell;
           };
       }
     );

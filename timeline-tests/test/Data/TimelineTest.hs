@@ -23,14 +23,6 @@ import Data.Time
     secondsToNominalDiffTime,
   )
 import Data.Timeline
-  ( Record,
-    TimeRange (..),
-    changes,
-    fromRecords,
-    fromValues,
-    makeRecord,
-    peek,
-  )
 import Data.Timeline.Hedgehog (gen, genUTCTime)
 import Hedgehog (forAll, property, (===))
 import Hedgehog.Gen qualified as Gen
@@ -141,7 +133,10 @@ test_fromRecords =
   ]
   where
     testCase' :: (Show a) => TestName -> [Maybe (Record a)] -> TestTree
-    testCase' name records = buildGoldenTest name . fromRecords . catMaybes $ records
+    testCase' name = buildGoldenTest pretty name . fromRecords . catMaybes
+
+    pretty (Left overlaps) = prettyOverlaps overlaps
+    pretty (Right timeline) = prettyTimeline timeline
 
 test_peek :: [TestTree]
 test_peek =
@@ -241,10 +236,10 @@ test_imap =
       imap (\_ a -> a) tl === tl
   ]
 
-buildGoldenTest :: (Show a) => TestName -> a -> TestTree
-buildGoldenTest name value =
+buildGoldenTest :: (a -> Text) -> TestName -> a -> TestTree
+buildGoldenTest pretty name value =
   goldenVsString
     name
     ("test/golden/" <> fmap (\ch -> if ch == ' ' then '_' else ch) name <> ".txt")
-    $ pure . LBS.fromStrict . T.encodeUtf8 . T.pack . show
+    $ pure . LBS.fromStrict . T.encodeUtf8 . pretty
     $ value
