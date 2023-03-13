@@ -72,12 +72,14 @@ import Language.Haskell.TH.Syntax qualified as TH (Lift (liftTyped))
 import Language.Haskell.TH.Syntax.Compat qualified as TH
 import Prelude
 
--- | A unbounded discrete timeline for data type @a@.
--- @'Timeline' a@ always has a value for any time, but the value can only change for a finite number of times.
+-- | A unbounded discrete timeline for data type @a@. @'Timeline' a@ always has
+-- a value for any time, but the value can only change for a finite number of
+-- times.
 --
--- * 'Functor', 'Foldable' and 'Traversable' instances are provided to traverse through the timeline;
--- * 'FunctorWithIndex', 'Foldable' and 'TraversableWithIndex' instances are provided in case you need the current time
--- range where each value holds
+-- * 'Functor', 'Foldable' and 'Traversable' instances are provided to traverse
+--   through the timeline;
+-- * 'FunctorWithIndex', 'Foldable' and 'TraversableWithIndex' instances are
+-- provided in case you need the current time range where each value holds
 -- * 'Applicative' instance can be used to merge multiple 'Timeline's together
 data Timeline a = Timeline
   { -- | the value from negative infinity time to the first time in 'values'
@@ -110,9 +112,10 @@ instance Applicative Timeline where
 tshow :: Show a => a -> Text
 tshow = T.pack . show
 
--- | Pretty-print @'Timeline' a@. It's provided so that you can investigate the value of 'Timeline' more easily. If you
--- need to show a timeline to the end user, write your own function. We don't gurantee the result to be stable across
--- different versions of this library.
+-- | Pretty-print @'Timeline' a@. It's provided so that you can investigate the
+-- value of 'Timeline' more easily. If you need to show a timeline to the end
+-- user, write your own function. We don't gurantee the result to be stable
+-- across different versions of this library.
 prettyTimeline :: forall a. Show a => Timeline a -> Text
 prettyTimeline Timeline {initialValue, values} =
   T.unlines $
@@ -167,13 +170,14 @@ instance TraversableWithIndex TimeRange Timeline where
 changes :: Timeline a -> Set UTCTime
 changes Timeline {values} = Map.keysSet values
 
--- | A value with @effectiveFrom@ and @effectiveTo@ attached. This is often the type we get from inputs. A list of
--- @'Record' a@ can be converted to @'Timeline' ('Maybe' a)@. See 'fromRecords'.
+-- | A value with @effectiveFrom@ and @effectiveTo@ attached. This is often the
+-- type we get from inputs. A list of @'Record' a@ can be converted to
+-- @'Timeline' ('Maybe' a)@. See 'fromRecords'.
 data Record a = Record
   { -- | inclusive
     effectiveFrom :: UTCTime,
-    -- | exclusive. When 'Nothing', the record never expires, until there is another record with a newer 'effectiveFrom'
-    -- time.
+    -- | exclusive. When 'Nothing', the record never expires, until there is
+    -- another record with a newer 'effectiveFrom' time.
     effectiveTo :: Maybe UTCTime,
     value :: a
   }
@@ -234,8 +238,9 @@ instance TH.Lift LiftUTCTime where
 prettyRecord :: Show a => Record a -> Text
 prettyRecord Record {..} = tshow effectiveFrom <> " ~ " <> tshow effectiveTo <> ": " <> tshow value
 
--- | An @'Overlaps' a@ consists of several groups. Within each group, all records
--- are connected where two records are "connected" if they are overlapping.
+-- | An @'Overlaps' a@ consists of several groups. Within each group, all
+-- records are connected where two records are "connected" if they are
+-- overlapping.
 newtype Overlaps a = Overlaps {groups :: NonEmpty (OverlapGroup a)}
   deriving newtype (Semigroup)
   deriving stock (Show, Eq, Generic)
@@ -265,9 +270,11 @@ unpackOverlapGroup (OverlapGroup r1 r2 records) = r1 : r2 : records
 
 -- | Build a 'Timeline' from a list of 'Record's.
 --
--- For any time, there could be zero, one, or more values, according to the input. No other condition
--- is possible. We have taken account the "zero" case by wrapping the result in 'Maybe', so the only
--- possible error is 'Overlaps'.
+-- For any time, there could be zero, one, or more values, according to the
+-- input. No other condition is possible. We have taken account the "zero" case
+-- by wrapping the result in 'Maybe', so the only possible error is 'Overlaps'.
+-- The 'Traversable' instance of @'Timeline' a@ can be used to convert
+-- @'Timeline' ('Maybe' a)@ to @'Maybe' ('Timeline' a)@
 fromRecords :: forall a. [Record a] -> Either (Overlaps a) (Timeline (Maybe a))
 fromRecords records =
   maybe (Right timeline) Left overlaps
@@ -287,9 +294,10 @@ fromRecords records =
       [NonEmpty (Record a)] ->
       [NonEmpty (Record a)]
     mergeOverlappingNeighbours current ((next :| group) : groups)
-      -- Be aware that this is called in 'foldr', so it traverse the list from right to left.
-      -- If the current record overlaps with the top (left-most) record in the next group, we add it
-      -- to the group. Otherwise, create a new group for it.
+      -- Be aware that this is called in 'foldr', so it traverse the list from
+      -- right to left. If the current record overlaps with the top (left-most)
+      -- record in the next group, we add it to the group. Otherwise, create a
+      -- new group for it.
       | isOverlapping = (current NonEmpty.<| next :| group) : groups
       | otherwise = (current :| []) : (next :| group) : groups
       where
@@ -300,7 +308,8 @@ fromRecords records =
     checkForOverlap (_ :| []) = Nothing
     checkForOverlap (x1 :| x2 : xs) = Just . Overlaps . (:| []) $ OverlapGroup x1 x2 xs
 
-    -- build the timeline assuming all elements of `sortedRecords` cover distinct (non-overlapping) time-periods
+    -- build the timeline assuming all elements of `sortedRecords` cover
+    -- distinct (non-overlapping) time-periods
     timeline :: Timeline (Maybe a)
     timeline =
       case nonEmpty sortedRecords of
