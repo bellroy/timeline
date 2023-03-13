@@ -239,8 +239,8 @@ prettyRecord :: Show a => Record a -> Text
 prettyRecord Record {..} = tshow effectiveFrom <> " ~ " <> tshow effectiveTo <> ": " <> tshow value
 
 -- | An @'Overlaps' a@ consists of several groups. Within each group, all
--- records are connected where two records are "connected" if they are
--- overlapping.
+-- records are connected. Definition of connectivity: two records are
+-- "connected" if and only if they overlap.
 newtype Overlaps a = Overlaps {groups :: NonEmpty (OverlapGroup a)}
   deriving newtype (Semigroup)
   deriving stock (Show, Eq, Generic)
