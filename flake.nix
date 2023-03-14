@@ -12,7 +12,7 @@
 
   outputs = inputs:
     let
-      cabalPackages = [ "timeline" "timeline-hedgehog" "timeline-tests" ];
+      cabalPackages = [ "timeline" "timeline-core" "timeline-hedgehog" ];
       supportedCompilers = [ "ghc8107" "ghc926" "ghc944" ];
       defaultCompiler = "ghc926";
     in

@@ -10,7 +10,7 @@ module Data.Timeline.Hedgehog
   )
 where
 
-import Data.Timeline
+import Data.Timeline.Internal
 import Hedgehog (MonadGen)
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range

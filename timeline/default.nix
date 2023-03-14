@@ -1,5 +1,7 @@
-{ mkDerivation, base, containers, indexed-traversable, lib
-, semigroupoids, template-haskell, text, th-compat, time
+{ mkDerivation, base, bytestring, containers, hashable, hedgehog
+, indexed-traversable, lib, semigroupoids, tasty, tasty-discover
+, tasty-golden, tasty-hedgehog, tasty-hunit, template-haskell, text
+, th-compat, time, timeline-core, timeline-hedgehog, transformers
 }:
 mkDerivation {
   pname = "timeline";
@@ -7,8 +9,14 @@ mkDerivation {
   src = ./.;
   libraryHaskellDepends = [
     base containers indexed-traversable semigroupoids template-haskell
-    text th-compat time
+    text th-compat time timeline-core
   ];
-  description = "A simple library for handling data that changes over time";
+  testHaskellDepends = [
+    base bytestring containers hashable hedgehog indexed-traversable
+    tasty tasty-golden tasty-hedgehog tasty-hunit text time
+    timeline-hedgehog transformers
+  ];
+  testToolDepends = [ tasty-discover ];
+  description = "Data type representing a piecewise-constant function over time";
   license = lib.licenses.bsd3;
 }
