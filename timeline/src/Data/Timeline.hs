@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 
 -- |
@@ -15,11 +16,11 @@ import Language.Haskell.TH.Syntax.Compat qualified as TH
 
 -- | Template Haskell counterpart of 'makeRecord'.
 makeRecordTH ::
-  (TH.Lift a) =>
-  UTCTime ->
-  Maybe UTCTime ->
+  (Ord t, TH.Lift (Record t a)) =>
+  t ->
+  Maybe t ->
   a ->
-  TH.SpliceQ (Record a)
+  TH.SpliceQ (Record t a)
 makeRecordTH effectiveFrom effectiveTo value =
   TH.bindSplice
     ( maybe (fail "effective to is no greater than effective from") pure $

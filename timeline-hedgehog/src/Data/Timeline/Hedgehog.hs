@@ -7,13 +7,9 @@ module Data.Timeline.Hedgehog
   ( -- * Timeline Generators
     gen,
     genRecord,
-
-    -- * Helpers
-    genUTCTime,
   )
 where
 
-import Data.Time (UTCTime (..), fromGregorian, secondsToDiffTime)
 import Data.Timeline
 import Hedgehog (MonadGen)
 import Hedgehog.Gen qualified as Gen
@@ -21,34 +17,25 @@ import Hedgehog.Range qualified as Range
 
 -- | Generator for @'Timeline' a@
 gen ::
-  (MonadGen m) =>
+  (MonadGen m, Ord t) =>
+  m t ->
   -- | Generator for values
   m a ->
-  m (Timeline a)
-gen genValue = do
+  m (Timeline t a)
+gen genTime genValue = do
   initialValue <- genValue
-  values <- Gen.map (Range.linear 0 20) $ (,) <$> genUTCTime <*> genValue
+  values <- Gen.map (Range.linear 0 20) $ (,) <$> genTime <*> genValue
   pure Timeline {initialValue, values}
 
 -- | Generator for @'Record' a@
 genRecord ::
-  (MonadGen m) =>
+  (MonadGen m, Ord t) =>
+  m t ->
   -- | Generator for the value
   m a ->
-  m (Record a)
-genRecord valueGen =
+  m (Record t a)
+genRecord genTime genValue =
   Gen.justT $ do
-    t1 <- genUTCTime
-    t2 <- Gen.maybe $ Gen.filterT (/= t1) genUTCTime
-    makeRecord t1 t2 <$> valueGen
-
--- | A 'UTCTime' generator
-genUTCTime :: (MonadGen m) => m UTCTime
-genUTCTime = do
-  y <- toInteger <$> Gen.int (Range.constant 2000 2030)
-  m <- Gen.int (Range.constant 1 12)
-  d <- Gen.int (Range.constant 1 28)
-  let day = fromGregorian y m d
-  secs <- toInteger <$> Gen.int (Range.constant 0 86401)
-  let diff = secondsToDiffTime secs
-  pure $ UTCTime day diff
+    t1 <- genTime
+    t2 <- Gen.maybe $ Gen.filterT (/= t1) genTime
+    makeRecord t1 t2 <$> genValue

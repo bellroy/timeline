@@ -1,9 +1,11 @@
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
@@ -81,26 +83,26 @@ import Prelude
 -- * 'FunctorWithIndex', 'Foldable' and 'TraversableWithIndex' instances are
 -- provided in case you need the current time range where each value holds
 -- * 'Applicative' instance can be used to merge multiple 'Timeline's together
-data Timeline a = Timeline
+data Timeline t a = Timeline
   { -- | the value from negative infinity time to the first time in 'values'
     initialValue :: a,
     -- | changes are keyed by their "effective from" time, for easier lookup
-    values :: Map UTCTime a
+    values :: Map t a
   }
   deriving stock (Show, Eq, Generic, Functor, Foldable, Traversable)
 
-instance Applicative Timeline where
-  pure :: a -> Timeline a
+instance Ord t => Applicative (Timeline t) where
+  pure :: a -> Timeline t a
   pure a = Timeline {initialValue = a, values = mempty}
 
-  (<*>) :: forall a b. Timeline (a -> b) -> Timeline a -> Timeline b
+  (<*>) :: forall a b. Timeline t (a -> b) -> Timeline t a -> Timeline t b
   fs@Timeline {initialValue = initialFunc, values = funcs} <*> xs@Timeline {initialValue, values} =
     Timeline
       { initialValue = initialFunc initialValue,
         values = mergedValues
       }
     where
-      mergedValues :: Map UTCTime b
+      mergedValues :: Map t b
       mergedValues =
         Map.merge
           (Map.mapMissing $ \t f -> f $ peek xs t)
@@ -116,7 +118,7 @@ tshow = T.pack . show
 -- value of 'Timeline' more easily. If you need to show a timeline to the end
 -- user, write your own function. We don't gurantee the result to be stable
 -- across different versions of this library.
-prettyTimeline :: forall a. Show a => Timeline a -> Text
+prettyTimeline :: forall t a. (Ord t, Show t, Show a) => Timeline t a -> Text
 prettyTimeline Timeline {initialValue, values} =
   T.unlines $
     "\n----------Timeline--Start-------------"
@@ -124,32 +126,33 @@ prettyTimeline Timeline {initialValue, values} =
       : fmap showOneChange (Map.toAscList values)
       ++ ["----------Timeline--End---------------"]
   where
-    showOneChange :: (UTCTime, a) -> Text
+    showOneChange :: (t, a) -> Text
     showOneChange (t, x) = "since " <> tshow t <> ": " <> tshow x
 
 -- | Extract a single value from the timeline
 peek ::
-  Timeline a ->
-  -- | The time to peek. Any valid 'UTCTime' value can be passed in.
-  UTCTime ->
+  Ord t =>
+  Timeline t a ->
+  -- | the time to peek
+  t ->
   a
 peek Timeline {..} time = maybe initialValue snd $ Map.lookupLE time values
 
 -- | A time range. Each bound is optional. 'Nothing' represents infinity.
-data TimeRange = TimeRange
+data TimeRange t = TimeRange
   { -- | inclusive
-    from :: Maybe UTCTime,
+    from :: Maybe t,
     -- | exclusive
-    to :: Maybe UTCTime
+    to :: Maybe t
   }
   deriving stock (Show, Eq, Ord, Generic)
 
--- | If all time in 'TimeRange' is less than the given 'UTCTime'
-isTimeAfterRange :: UTCTime -> TimeRange -> Bool
+-- | If all time in 'TimeRange' is less than the given time
+isTimeAfterRange :: Ord t => t -> TimeRange t -> Bool
 isTimeAfterRange t TimeRange {to} = maybe False (t >=) to
 
-instance FunctorWithIndex TimeRange Timeline where
-  imap :: (TimeRange -> a -> b) -> Timeline a -> Timeline b
+instance Ord t => FunctorWithIndex (TimeRange t) (Timeline t) where
+  imap :: (TimeRange t -> a -> b) -> Timeline t a -> Timeline t b
   imap f Timeline {..} =
     Timeline
       { initialValue = f initialRange initialValue,
@@ -160,57 +163,60 @@ instance FunctorWithIndex TimeRange Timeline where
     where
       initialRange = TimeRange Nothing $ fst <$> Map.lookupMin values
 
-instance FoldableWithIndex TimeRange Timeline
+instance Ord t => FoldableWithIndex (TimeRange t) (Timeline t)
 
-instance TraversableWithIndex TimeRange Timeline where
-  itraverse :: (Applicative f) => (TimeRange -> a -> f b) -> Timeline a -> f (Timeline b)
+instance Ord t => TraversableWithIndex (TimeRange t) (Timeline t) where
+  itraverse :: (Applicative f) => (TimeRange t -> a -> f b) -> Timeline t a -> f (Timeline t b)
   itraverse f = sequenceA . imap f
 
--- | Return a set of 'UTCTime's when the value changes
-changes :: Timeline a -> Set UTCTime
+-- | Return the set of time when the value changes
+changes :: Timeline t a -> Set t
 changes Timeline {values} = Map.keysSet values
 
 -- | A value with @effectiveFrom@ and @effectiveTo@ attached. This is often the
 -- type we get from inputs. A list of @'Record' a@ can be converted to
 -- @'Timeline' ('Maybe' a)@. See 'fromRecords'.
-data Record a = Record
+data Record t a = Record
   { -- | inclusive
-    from :: UTCTime,
+    from :: t,
     -- | exclusive. When 'Nothing', the record never expires, until there is
     -- another record with a newer 'effectiveFrom' time.
-    to :: Maybe UTCTime,
+    to :: Maybe t,
     value :: a
   }
-  deriving stock (Show, Eq, Functor, Foldable, Traversable)
+  deriving stock (Show, Eq, Functor, Foldable, Traversable, TH.Lift)
 
 -- | Get the "effective from" time
-recordFrom :: Record a -> UTCTime
+recordFrom :: Record t a -> t
 recordFrom Record {from} = from
 
 -- | Get the "effective to" time
-recordTo :: Record a -> Maybe UTCTime
+recordTo :: Record t a -> Maybe t
 recordTo Record {to} = to
 
 -- | Get the value wrapped in a @'Record' a@
-recordValue :: Record a -> a
+recordValue :: Record t a -> a
 recordValue = value
 
 -- | A smart constructor for @'Record' a@.
 -- Returns 'Nothing' if @effectiveTo@ is not greater than @effectiveFrom@
 makeRecord ::
+  Ord t =>
   -- | effective from
-  UTCTime ->
+  t ->
   -- | optional effective to
-  Maybe UTCTime ->
+  Maybe t ->
   -- | value
   a ->
-  Maybe (Record a)
+  Maybe (Record t a)
 makeRecord from to value =
   if maybe False (from >=) to
     then Nothing
     else Just Record {..}
 
-instance (TH.Lift a) => TH.Lift (Record a) where
+-- | Special support for 'UTCTime'. This will be removed when 'TH.Lift'
+-- instances are provided by the @time@ package directly.
+instance {-# OVERLAPPING #-} (TH.Lift a) => TH.Lift (Record UTCTime a) where
   liftTyped Record {..} =
     [||
     Record
@@ -235,18 +241,18 @@ instance TH.Lift LiftUTCTime where
     ||]
 
 -- | Pretty-print @'Record' a@, like 'prettyTimeline'.
-prettyRecord :: Show a => Record a -> Text
+prettyRecord :: (Show t, Show a) => Record t a -> Text
 prettyRecord Record {..} = tshow from <> " ~ " <> tshow to <> ": " <> tshow value
 
 -- | An @'Overlaps' a@ consists of several groups. Within each group, all
 -- records are connected. Definition of connectivity: two records are
 -- "connected" if and only if they overlap.
-newtype Overlaps a = Overlaps {groups :: NonEmpty (OverlapGroup a)}
+newtype Overlaps t a = Overlaps {groups :: NonEmpty (OverlapGroup t a)}
   deriving newtype (Semigroup)
   deriving stock (Show, Eq, Generic)
 
 -- | Pretty-print @'Overlaps' a@, like 'prettyTimeline'.
-prettyOverlaps :: Show a => Overlaps a -> Text
+prettyOverlaps :: (Show t, Show a) => Overlaps t a -> Text
 prettyOverlaps Overlaps {groups} =
   "Here are "
     <> tshow (length groups)
@@ -258,14 +264,14 @@ prettyOverlaps Overlaps {groups} =
     sep = "--------------------\n"
 
 -- | A group of overlapping records. There must be at least two records within a group.
-data OverlapGroup a = OverlapGroup (Record a) (Record a) [Record a]
+data OverlapGroup t a = OverlapGroup (Record t a) (Record t a) [Record t a]
   deriving stock (Show, Eq, Generic)
 
-prettyOverlapGroup :: Show a => OverlapGroup a -> Text
+prettyOverlapGroup :: (Show t, Show a) => OverlapGroup t a -> Text
 prettyOverlapGroup = T.unlines . fmap prettyRecord . unpackOverlapGroup
 
 -- | Unpack @'OverlapGroup' a@ as a list of records.
-unpackOverlapGroup :: OverlapGroup a -> [Record a]
+unpackOverlapGroup :: OverlapGroup t a -> [Record t a]
 unpackOverlapGroup (OverlapGroup r1 r2 records) = r1 : r2 : records
 
 -- | Build a 'Timeline' from a list of 'Record's.
@@ -275,7 +281,7 @@ unpackOverlapGroup (OverlapGroup r1 r2 records) = r1 : r2 : records
 -- by wrapping the result in 'Maybe', so the only possible error is 'Overlaps'.
 -- The 'Traversable' instance of @'Timeline' a@ can be used to convert
 -- @'Timeline' ('Maybe' a)@ to @'Maybe' ('Timeline' a)@
-fromRecords :: forall a. [Record a] -> Either (Overlaps a) (Timeline (Maybe a))
+fromRecords :: forall t a. Ord t => [Record t a] -> Either (Overlaps t a) (Timeline t (Maybe a))
 fromRecords records =
   maybe (Right timeline) Left overlaps
   where
@@ -290,9 +296,9 @@ fromRecords records =
         $ sortedRecords
 
     mergeOverlappingNeighbours ::
-      Record a ->
-      [NonEmpty (Record a)] ->
-      [NonEmpty (Record a)]
+      Record t a ->
+      [NonEmpty (Record t a)] ->
+      [NonEmpty (Record t a)]
     mergeOverlappingNeighbours current ((next :| group) : groups)
       -- Be aware that this is called in 'foldr', so it traverse the list from
       -- right to left. If the current record overlaps with the top (left-most)
@@ -304,13 +310,13 @@ fromRecords records =
         isOverlapping = maybe False (recordFrom next <) (recordTo current)
     mergeOverlappingNeighbours current [] = [current :| []]
 
-    checkForOverlap :: NonEmpty (Record a) -> Maybe (Overlaps a)
+    checkForOverlap :: NonEmpty (Record t a) -> Maybe (Overlaps t a)
     checkForOverlap (_ :| []) = Nothing
     checkForOverlap (x1 :| x2 : xs) = Just . Overlaps . (:| []) $ OverlapGroup x1 x2 xs
 
     -- build the timeline assuming all elements of `sortedRecords` cover
     -- distinct (non-overlapping) time-periods
-    timeline :: Timeline (Maybe a)
+    timeline :: Timeline t (Maybe a)
     timeline =
       case nonEmpty sortedRecords of
         Nothing -> pure Nothing
@@ -324,7 +330,7 @@ fromRecords records =
                     (NonEmpty.toList records')
                     ((Just <$> NonEmpty.tail records') <> [Nothing])
             }
-    connectAdjacentRecords :: Record a -> Maybe (Record a) -> [(UTCTime, Maybe a)]
+    connectAdjacentRecords :: Record t a -> Maybe (Record t a) -> [(t, Maybe a)]
     connectAdjacentRecords current next =
       (recordFrom current, Just $ value current)
         : maybeToList gap
