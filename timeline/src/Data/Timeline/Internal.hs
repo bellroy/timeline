@@ -82,22 +82,22 @@ import Prelude
 -- provided in case you need the current time range where each value holds
 -- * 'Applicative' instance can be used to merge multiple 'Timeline's together
 data Timeline a = Timeline
-  { -- | the value from negative infinity time to the first time in 'tlValues'
-    tlInitialValue :: a,
+  { -- | the value from negative infinity time to the first time in 'values'
+    initialValue :: a,
     -- | changes are keyed by their "effective from" time, for easier lookup
-    tlValues :: Map UTCTime a
+    values :: Map UTCTime a
   }
   deriving stock (Show, Eq, Generic, Functor, Foldable, Traversable)
 
 instance Applicative Timeline where
   pure :: a -> Timeline a
-  pure a = Timeline {tlInitialValue = a, tlValues = mempty}
+  pure a = Timeline {initialValue = a, values = mempty}
 
   (<*>) :: forall a b. Timeline (a -> b) -> Timeline a -> Timeline b
-  fs@Timeline {tlInitialValue = initialFunc, tlValues = funcs} <*> xs@Timeline {tlInitialValue, tlValues} =
+  fs@Timeline {initialValue = initialFunc, values = funcs} <*> xs@Timeline {initialValue, values} =
     Timeline
-      { tlInitialValue = initialFunc tlInitialValue,
-        tlValues = mergedValues
+      { initialValue = initialFunc initialValue,
+        values = mergedValues
       }
     where
       mergedValues :: Map UTCTime b
@@ -107,7 +107,7 @@ instance Applicative Timeline where
           (Map.mapMissing $ \t x -> peek fs t x)
           (Map.zipWithMatched (const ($)))
           funcs
-          tlValues
+          values
 
 tshow :: Show a => a -> Text
 tshow = T.pack . show
@@ -117,11 +117,11 @@ tshow = T.pack . show
 -- user, write your own function. We don't gurantee the result to be stable
 -- across different versions of this library.
 prettyTimeline :: forall a. Show a => Timeline a -> Text
-prettyTimeline Timeline {tlInitialValue, tlValues} =
+prettyTimeline Timeline {initialValue, values} =
   T.unlines $
     "\n----------Timeline--Start-------------"
-      : ("initial value:                 " <> tshow tlInitialValue)
-      : fmap showOneChange (Map.toAscList tlValues)
+      : ("initial value:                 " <> tshow initialValue)
+      : fmap showOneChange (Map.toAscList values)
       ++ ["----------Timeline--End---------------"]
   where
     showOneChange :: (UTCTime, a) -> Text
@@ -133,32 +133,32 @@ peek ::
   -- | The time to peek. Any valid 'UTCTime' value can be passed in.
   UTCTime ->
   a
-peek Timeline {..} time = maybe tlInitialValue snd $ Map.lookupLE time tlValues
+peek Timeline {..} time = maybe initialValue snd $ Map.lookupLE time values
 
 -- | A time range. Each bound is optional. 'Nothing' represents infinity.
 data TimeRange = TimeRange
   { -- | inclusive
-    trFrom :: Maybe UTCTime,
+    from :: Maybe UTCTime,
     -- | exclusive
-    trTo :: Maybe UTCTime
+    to :: Maybe UTCTime
   }
   deriving stock (Show, Eq, Ord, Generic)
 
 -- | If all time in 'TimeRange' is less than the given 'UTCTime'
 isTimeAfterRange :: UTCTime -> TimeRange -> Bool
-isTimeAfterRange t TimeRange {trTo} = maybe False (t >=) trTo
+isTimeAfterRange t TimeRange {to} = maybe False (t >=) to
 
 instance FunctorWithIndex TimeRange Timeline where
   imap :: (TimeRange -> a -> b) -> Timeline a -> Timeline b
   imap f Timeline {..} =
     Timeline
-      { tlInitialValue = f initialRange tlInitialValue,
-        tlValues = flip Map.mapWithKey tlValues $ \from value ->
-          let timeRange = TimeRange (Just from) (fst <$> Map.lookupGT from tlValues)
+      { initialValue = f initialRange initialValue,
+        values = flip Map.mapWithKey values $ \from value ->
+          let timeRange = TimeRange (Just from) (fst <$> Map.lookupGT from values)
            in f timeRange value
       }
     where
-      initialRange = TimeRange Nothing $ fst <$> Map.lookupMin tlValues
+      initialRange = TimeRange Nothing $ fst <$> Map.lookupMin values
 
 instance FoldableWithIndex TimeRange Timeline
 
@@ -168,7 +168,7 @@ instance TraversableWithIndex TimeRange Timeline where
 
 -- | Return a set of 'UTCTime's when the value changes
 changes :: Timeline a -> Set UTCTime
-changes Timeline {tlValues} = Map.keysSet tlValues
+changes Timeline {values} = Map.keysSet values
 
 -- | A value with @effectiveFrom@ and @effectiveTo@ attached. This is often the
 -- type we get from inputs. A list of @'Record' a@ can be converted to
@@ -185,11 +185,11 @@ data Record a = Record
 
 -- | Get the "effective from" time
 recordFrom :: Record a -> UTCTime
-recordFrom = from
+recordFrom Record {from} = from
 
 -- | Get the "effective to" time
 recordTo :: Record a -> Maybe UTCTime
-recordTo = to
+recordTo Record {to} = to
 
 -- | Get the value wrapped in a @'Record' a@
 recordValue :: Record a -> a
@@ -279,7 +279,7 @@ fromRecords :: forall a. [Record a] -> Either (Overlaps a) (Timeline (Maybe a))
 fromRecords records =
   maybe (Right timeline) Left overlaps
   where
-    sortedRecords = sortOn from records
+    sortedRecords = sortOn recordFrom records
 
     -- overlap detection
     overlaps =
@@ -301,7 +301,7 @@ fromRecords records =
       | isOverlapping = (current NonEmpty.<| next :| group) : groups
       | otherwise = (current :| []) : (next :| group) : groups
       where
-        isOverlapping = maybe False (from next <) (to current)
+        isOverlapping = maybe False (recordFrom next <) (recordTo current)
     mergeOverlappingNeighbours current [] = [current :| []]
 
     checkForOverlap :: NonEmpty (Record a) -> Maybe (Overlaps a)
@@ -316,8 +316,8 @@ fromRecords records =
         Nothing -> pure Nothing
         Just records' ->
           Timeline
-            { tlInitialValue = Nothing,
-              tlValues =
+            { initialValue = Nothing,
+              values =
                 Map.fromList . concat $
                   zipWith
                     connectAdjacentRecords
@@ -326,11 +326,11 @@ fromRecords records =
             }
     connectAdjacentRecords :: Record a -> Maybe (Record a) -> [(UTCTime, Maybe a)]
     connectAdjacentRecords current next =
-      (from current, Just $ value current)
+      (recordFrom current, Just $ value current)
         : maybeToList gap
       where
         gap = do
-          effectiveTo' <- to current
-          if maybe True (\next' -> effectiveTo' < from next') next
+          effectiveTo' <- recordTo current
+          if maybe True (\next' -> effectiveTo' < recordFrom next') next
             then pure (effectiveTo', Nothing)
             else Nothing

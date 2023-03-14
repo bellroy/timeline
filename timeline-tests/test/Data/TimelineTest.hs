@@ -225,7 +225,7 @@ test_imap =
     testProperty "law: imap f . imap g === imap (\\i -> f i . g i)" $ property $ do
       tl <- forAll $ gen (Gen.int (Range.constant 0 1000))
       let hashTimeRange :: TimeRange -> Int
-          hashTimeRange TimeRange {trFrom, trTo} = hash (show trFrom) `hashWithSalt` show trTo
+          hashTimeRange TimeRange {from, to} = hash (show from) `hashWithSalt` show to
           f :: TimeRange -> Int -> Int
           f tr x = hashTimeRange tr + x
           g :: TimeRange -> Int -> Int
