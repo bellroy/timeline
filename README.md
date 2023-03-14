@@ -31,7 +31,7 @@ The core type is `Timeline a`, refer to
 for its usage.
 
 ## Contribution
-We, Bellroy, actively maintains this project. Feel free to submit issues and
+Bellroy actively maintains this project. Feel free to submit issues and
 pull requests! Our primary timezone is GMT+11.
 
 The code is formatted with [`ormolu`](https://hackage.haskell.org/package/ormolu)
