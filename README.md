@@ -9,11 +9,11 @@ using computers. Below are some concrete examples:
 - Prices of products. A product could have different prices on Amazon and EBay,
   and in different currencies.
 
-Timeline data is often implemented by attaching a field `effective_from` and
-possibly an `effective_to` field to the record. However, only representing and
-storing the data is not sufficient, we need to run operations on timeline data,
-like extracting a single data point at some specific time, merging multiple
-timelines together, etc.
+Timeline data is often implemented by attaching extra fields to your business
+object, denoting the start and end time of each interval. However, only
+representing and storing the data is not sufficient, we need to run operations
+on timeline data, like extracting a single data point at some specific time,
+merging multiple timelines together, etc.
 
 If you have a similar use case and don't want to reinvent the wheel, this
 library is for you.

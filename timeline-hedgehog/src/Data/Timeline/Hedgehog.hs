@@ -26,9 +26,9 @@ gen ::
   m a ->
   m (Timeline a)
 gen genValue = do
-  initialValue <- genValue
-  values <- Gen.map (Range.linear 0 20) $ (,) <$> genUTCTime <*> genValue
-  pure Timeline {initialValue, values}
+  tlInitialValue <- genValue
+  tlValues <- Gen.map (Range.linear 0 20) $ (,) <$> genUTCTime <*> genValue
+  pure Timeline {tlInitialValue, tlValues}
 
 -- | Generator for @'Record' a@
 genRecord ::
