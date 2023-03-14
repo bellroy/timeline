@@ -32,7 +32,7 @@ for its usage.
 
 ## Contribution
 Bellroy actively maintains this project. Feel free to submit issues and
-pull requests! Our primary timezone is GMT+11.
+pull requests!
 
 The code is formatted with [`ormolu`](https://hackage.haskell.org/package/ormolu)
 
