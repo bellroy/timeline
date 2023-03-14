@@ -12,7 +12,12 @@
 
   outputs = inputs:
     let
-      cabalPackages = [ "timeline" "timeline-core" "timeline-hedgehog" ];
+      cabalPackages = [
+        {
+          name = "timeline";
+          path = ./package.nix;
+        }
+      ];
       supportedCompilers = [ "ghc8107" "ghc926" "ghc944" ];
       defaultCompiler = "ghc926";
     in
@@ -25,9 +30,9 @@
             builtins.listToAttrs
               (
                 builtins.map
-                  (name: {
-                    inherit name;
-                    value = prev.callPackage (./. + "/${name}") { };
+                  (cabalPackage: {
+                    name = cabalPackage.name;
+                    value = prev.callPackage cabalPackage.path { };
                   })
                   cabalPackages
               );
@@ -43,7 +48,7 @@
         ];
 
         makeShell = haskellPackages: (makePackageSet haskellPackages).shellFor {
-          packages = p: builtins.map (name: p.${name}) cabalPackages;
+          packages = p: builtins.map (cabalPackage: p.${cabalPackage.name}) cabalPackages;
           withHoogle = true;
           buildInputs = essentialTools ++ [
             nixpkgs.haskellPackages.haskell-language-server
@@ -64,9 +69,9 @@
                     let pkgSet = makePackageSet nixpkgs.haskell.packages.${compilerName};
                     in
                     builtins.map
-                      (name: {
-                        name = "${compilerName}-${name}";
-                        value = pkgSet.${name};
+                      (cabalPackage: {
+                        name = "${compilerName}-${cabalPackage.name}";
+                        value = pkgSet.${cabalPackage.name};
                       })
                       cabalPackages
                   )

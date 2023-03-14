@@ -1,5 +1,2 @@
-packages:
-  ./timeline-core
-  ./timeline
-  ./timeline-hedgehog
+packages: ./
 tests: True

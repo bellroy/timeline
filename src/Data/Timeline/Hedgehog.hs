@@ -1,8 +1,7 @@
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
--- |
---  Hedgehog generators for the timeline library.
+-- | Hedgehog generators for the timeline library.
 module Data.Timeline.Hedgehog
   ( -- * Timeline Generators
     gen,
@@ -10,7 +9,7 @@ module Data.Timeline.Hedgehog
   )
 where
 
-import Data.Timeline.Internal
+import Data.Timeline
 import Hedgehog (MonadGen)
 import Hedgehog.Gen qualified as Gen
 import Hedgehog.Range qualified as Range

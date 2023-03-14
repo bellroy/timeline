@@ -24,7 +24,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Data.Timeline.Internal
+module Data.Timeline
   ( -- * Core types and functions
     Timeline (..),
     peek,
