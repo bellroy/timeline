@@ -4,6 +4,11 @@ version:            0.1.0.0
 synopsis:
   Data type representing a piecewise-constant function over time
 
+description:
+  Provides data types and related function to make handling
+  timelines easier.  Please see the README on GitHub at
+  <https://github.com/bellroy/timeline>
+
 license:            BSD-3-Clause
 license-file:       LICENSE
 author:             Bellroy Tech Team <haskell@bellroy.com>
