@@ -18,11 +18,10 @@ merging multiple timelines together, etc.
 If you have a similar use case and don't want to reinvent the wheel, this
 library is for you.
 
-## Package Organization
+## Module Organization
 
-- `timeline` essential types and functions
-- `timeline-tests` unit tests
-- `timeline-hedgehog` hedgehog generators for timeline types
+- `Data.Timeline` essential types and functions
+- `Data.Timeline.Hedgehog` hedgehog generators for timeline types
 
 ## Getting Started
 
