@@ -18,8 +18,8 @@
           path = ./package.nix;
         }
       ];
-      supportedCompilers = [ "ghc8107" "ghc926" "ghc944" ];
-      defaultCompiler = "ghc926";
+      supportedCompilers = [ "ghc8107" "ghc92" "ghc94" ];
+      defaultCompiler = "ghc92";
     in
     inputs.flake-utils.lib.eachDefaultSystem (system:
       let
