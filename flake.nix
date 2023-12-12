@@ -12,7 +12,7 @@
         path = ./package.nix;
       }
     ];
-    supportedCompilers = [ "ghc8107" "ghc92" "ghc94" ];
+    supportedCompilers = [ "ghc8107" "ghc92" "ghc94" "ghc962" ];
     defaultCompiler = "ghc92";
   };
 }
