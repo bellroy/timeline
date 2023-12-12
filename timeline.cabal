@@ -31,7 +31,7 @@ common deps
     , containers           >=0.6.5    && <0.7.1
     , hedgehog             >=1.1      && <1.5
     , indexed-traversable  >=0.1.2    && <0.2
-    , text                 ^>=1.2.4.1 || >=2.0 && <2.1.1
+    , text                 ^>=1.2.4.1 || >=2.0 && <2.2
     , time                 >=1.9.3    && <1.13
 library
   import:           deps
