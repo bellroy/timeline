@@ -27,7 +27,7 @@ source-repository head
 
 common deps
   build-depends:
-    , base                 >=4.14.3   && <4.19
+    , base                 >=4.14.3   && <4.20
     , containers           >=0.6.5    && <0.7.1
     , hedgehog             >=1.1      && <1.5
     , indexed-traversable  >=0.1.2    && <0.2
@@ -44,7 +44,7 @@ library
   ghc-options:      -Wall -fno-warn-unused-do-bind -fno-warn-unused-imports
   build-depends:
     , semigroupoids     >=5.3.7  && <6.1
-    , template-haskell  >=2.16.0 && <2.21
+    , template-haskell  >=2.16.0 && <2.22
     , th-compat         >=0.1.4  && <0.2
 
 test-suite tests
