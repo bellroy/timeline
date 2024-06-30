@@ -6,13 +6,7 @@
   };
 
   outputs = inputs: inputs.bellroy-nix-foss.lib.haskellProject {
-    cabalPackages = [
-      {
-        name = "timeline";
-        path = ./package.nix;
-      }
-    ];
-    supportedCompilers = [ "ghc8107" "ghc92" "ghc94" "ghc962" ];
-    defaultCompiler = "ghc92";
+    supportedCompilers = [ "ghc92" "ghc94" "ghc96" "ghc98" "ghc910" ];
+    defaultCompiler = "ghc96";
   };
 }
