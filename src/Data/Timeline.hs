@@ -50,6 +50,7 @@ module Data.Timeline
 where
 
 import Data.Foldable.WithIndex (FoldableWithIndex (..))
+import Data.Foldable1 (fold1)
 import Data.Functor.Contravariant (Contravariant, contramap)
 import Data.Functor.WithIndex (FunctorWithIndex (..))
 import Data.List (intercalate, sortOn)
@@ -59,7 +60,6 @@ import Data.Map.Merge.Strict qualified as Map
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (mapMaybe, maybeToList)
-import Data.Semigroup.Foldable.Class (fold1)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Text qualified as T
@@ -93,7 +93,7 @@ data Timeline t a = Timeline
   }
   deriving stock (Show, Eq, Generic, Functor, Foldable, Traversable)
 
-instance Ord t => Applicative (Timeline t) where
+instance (Ord t) => Applicative (Timeline t) where
   pure :: a -> Timeline t a
   pure a = Timeline {initialValue = a, values = mempty}
 
@@ -113,7 +113,7 @@ instance Ord t => Applicative (Timeline t) where
           funcs
           values
 
-tshow :: Show a => a -> Text
+tshow :: (Show a) => a -> Text
 tshow = T.pack . show
 
 -- | Pretty-print @'Timeline' a@. It's provided so that you can investigate the
@@ -133,7 +133,7 @@ prettyTimeline Timeline {initialValue, values} =
 
 -- | Extract a single value from the timeline
 peek ::
-  Ord t =>
+  (Ord t) =>
   Timeline t a ->
   -- | the time to peek
   t ->
@@ -150,10 +150,10 @@ data TimeRange t = TimeRange
   deriving stock (Show, Eq, Ord, Generic)
 
 -- | If all time in 'TimeRange' is less than the given time
-isTimeAfterRange :: Ord t => t -> TimeRange t -> Bool
+isTimeAfterRange :: (Ord t) => t -> TimeRange t -> Bool
 isTimeAfterRange t TimeRange {to} = maybe False (t >=) to
 
-instance Ord t => FunctorWithIndex (TimeRange t) (Timeline t) where
+instance (Ord t) => FunctorWithIndex (TimeRange t) (Timeline t) where
   imap :: (TimeRange t -> a -> b) -> Timeline t a -> Timeline t b
   imap f Timeline {..} =
     Timeline
@@ -165,9 +165,9 @@ instance Ord t => FunctorWithIndex (TimeRange t) (Timeline t) where
     where
       initialRange = TimeRange Nothing $ fst <$> Map.lookupMin values
 
-instance Ord t => FoldableWithIndex (TimeRange t) (Timeline t)
+instance (Ord t) => FoldableWithIndex (TimeRange t) (Timeline t)
 
-instance Ord t => TraversableWithIndex (TimeRange t) (Timeline t) where
+instance (Ord t) => TraversableWithIndex (TimeRange t) (Timeline t) where
   itraverse :: (Applicative f) => (TimeRange t -> a -> f b) -> Timeline t a -> f (Timeline t b)
   itraverse f = sequenceA . imap f
 
@@ -203,7 +203,7 @@ recordValue = value
 -- | A smart constructor for @'Record' a@.
 -- Returns 'Nothing' if @effectiveTo@ is not greater than @effectiveFrom@
 makeRecord ::
-  Ord t =>
+  (Ord t) =>
   -- | effective from
   t ->
   -- | optional effective to
@@ -297,7 +297,7 @@ unpackOverlapGroup (OverlapGroup r1 r2 records) = r1 : r2 : records
 -- by wrapping the result in 'Maybe', so the only possible error is 'Overlaps'.
 -- The 'Traversable' instance of @'Timeline' a@ can be used to convert
 -- @'Timeline' ('Maybe' a)@ to @'Maybe' ('Timeline' a)@
-fromRecords :: forall t a. Ord t => [Record t a] -> Either (Overlaps t a) (Timeline t (Maybe a))
+fromRecords :: forall t a. (Ord t) => [Record t a] -> Either (Overlaps t a) (Timeline t (Maybe a))
 fromRecords records =
   maybe (Right timeline) Left overlaps
   where
