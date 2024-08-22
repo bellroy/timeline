@@ -1,6 +1,8 @@
 .vscode/
 .direnv/
 .envrc
+.pre-commit-config.yaml
+dist/
 result
 dist-newstyle
 cabal.project.local
