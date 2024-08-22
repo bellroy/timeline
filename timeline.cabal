@@ -29,9 +29,9 @@ common deps
   build-depends:
     , base                 >=4.14.3   && <4.21
     , containers           >=0.6.5    && <0.7.1
-    , hedgehog             >=1.1      && <1.5
+    , hedgehog             >=1.1      && <1.6
     , indexed-traversable  >=0.1.2    && <0.2
-    , text                 ^>=1.2.4.1 || >=2.0 && <2.2
+    , text                 ^>=1.2.4.1 || ^>=2.0 || ^>=2.1
     , time                 >=1.9.3    && <1.15
 
 library
@@ -60,8 +60,8 @@ test-suite tests
   build-tool-depends: tasty-discover:tasty-discover >=4.2 && <5.1
   build-depends:
     , bytestring      >=0.10      && <0.13
-    , hashable        ^>=1.4.2.0
-    , tasty           >=1.4.3 && <1.6
+    , hashable        ^>=1.4.2.0  || ^>=1.5
+    , tasty           >=1.4.3     && <1.6
     , tasty-golden    ^>=2.3.5
     , tasty-hedgehog  >=1.2.0.0
     , tasty-hunit     ^>=0.10.0.3
