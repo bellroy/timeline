@@ -23,10 +23,11 @@ tested-with:
    || ==9.8.2
    || ==9.10.1
 
-extra-source-files:
+extra-doc-files:
   CHANGELOG.md
   README.md
-  test/golden/*.txt
+
+extra-source-files: test/golden/*.txt
 
 source-repository head
   type:     git
