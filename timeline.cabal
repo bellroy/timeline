@@ -21,8 +21,8 @@ tested-with:
    || ==9.4.8
    || ==9.6.6
    || ==9.8.2
-   || ==9.10.1
-   || ==9.12.1
+   || ==9.10.2
+   || ==9.12.2
 
 extra-doc-files:
   CHANGELOG.md
@@ -41,7 +41,7 @@ common deps
     , hedgehog             >=1.1      && <1.6
     , indexed-traversable  >=0.1.2    && <0.2
     , text                 ^>=1.2.4.1 || ^>=2.0 || ^>=2.1
-    , time                 >=1.9.3    && <1.15
+    , time                 >=1.9.3    && <1.16
 
 library
   import:           deps
@@ -75,4 +75,4 @@ test-suite tests
     , tasty-hedgehog  >=1.2.0.0
     , tasty-hunit     ^>=0.10.0.3
     , timeline
-    , transformers    >=0.5.6.2   && <0.6.2.0
+    , transformers    >=0.5.6.2   && <0.6.3
