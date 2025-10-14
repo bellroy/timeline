@@ -38,7 +38,7 @@ common deps
   build-depends:
     , base                 >=4.14.3   && <4.22
     , containers           >=0.6.5    && <0.9
-    , hedgehog             >=1.1      && <1.6
+    , hedgehog             >=1.1      && <1.8
     , indexed-traversable  >=0.1.2    && <0.2
     , text                 ^>=1.2.4.1 || ^>=2.0 || ^>=2.1
     , time                 >=1.9.3    && <1.16
