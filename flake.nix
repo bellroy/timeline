@@ -10,7 +10,6 @@
     inputs.bellroy-nix-foss.lib.haskellProject {
       src = ./.;
       supportedCompilers = [
-        "ghc92"
         "ghc94"
         "ghc96"
         "ghc98"
