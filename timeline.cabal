@@ -22,7 +22,7 @@ tested-with:
    || ==9.6.6
    || ==9.8.2
    || ==9.10.2
-   || ==9.12.3
+   || ==9.12.2
 
 extra-doc-files:
   CHANGELOG.md
