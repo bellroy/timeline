@@ -1,0 +1,48 @@
+name: Renovate
+on:
+  schedule:
+    - cron: 02 0-9/1 * * *
+  issues:
+    types:
+      - edited
+      - reopened
+  push:
+    branches:
+      - master
+    paths:
+      - .github/renovate.json
+      - renovate.json
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  renovate:
+    name: Renovate
+    if: ${{ github.actor != 'bellroy-renovate-bot[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub app token
+        uses: actions/create-github-app-token@v3
+        id: token
+        with:
+          client-id: ${{ vars.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          repositories: ${{ github.event.repository.name }},bellroy-nix-foss
+
+      - name: Run Renovate
+        uses: renovatebot/github-action@973d3e5a68e735a444e8c03432b66eedb343c302 # v46.2.0
+        with:
+          token: ${{ steps.token.outputs.token }}
+          docker-network: host
+        env:
+          RENOVATE_PLATFORM: github
+          RENOVATE_DEPENDENCY_DASHBOARD: true
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          LOG_LEVEL: ${{ runner.debug == '1' && 'debug' || 'info' }}
