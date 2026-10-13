@@ -9,6 +9,11 @@
   },
   "packageRules": [
     {
+      "description": "Schedule updates for all packages on Sundays",
+      "matchPackageNames": ["**"],
+      "schedule": ["on sunday"]
+    },
+    {
       "matchManagers": ["github-actions"],
       "enabled": false,
       "description": "GitHub Actions versions in generated workflows are managed centrally by bellroy-gha-bot (bellroy/gha-workflows), not Renovate."
