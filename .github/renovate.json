@@ -1,12 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "enabledManagers": ["haskell-cabal", "nix", "github-actions"],
   "nix": {
-    "enabled": true
-  },
-  "lockFileMaintenance": {
-    "enabled": true
+    "enabled": true,
+    "lockFileMaintenance": {
+      "enabled": true,
+      "schedule": ["on sunday"]
+    }
   },
   "packageRules": [
     {
@@ -16,8 +16,11 @@
     },
     {
       "matchManagers": ["github-actions"],
-      "enabled": false,
-      "description": "GitHub Actions versions in generated workflows are managed centrally by bellroy-gha-bot (bellroy/gha-workflows), not Renovate."
+      "enabled": false
+    },
+    {
+      "matchManagers": ["nix"],
+      "groupName": "nix"
     }
   ],
   "prHourlyLimit": 5
