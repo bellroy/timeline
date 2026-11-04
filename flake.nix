@@ -13,7 +13,6 @@
       # but are no longer available in our nixpkgs channel. CI
       # (haskell-ci) verifies these older versions still build.
       supportedCompilers = [
-        "ghc94"
         "ghc96"
         "ghc98"
         "ghc910"
